@@ -1,0 +1,137 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.12/themes/smoothness/jquery-ui.css">
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.0/jquery.min.js"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.12/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="/js/highcharts.js"></script>
+    <script src="/socket.io/socket.io.js"></script> 
+    <script> 
+        var updaterate = 300;
+        var last_value = 0;
+        var socket = new io.Socket('localhost', {port:4000, secure: false}); 
+        socket.connect();
+        socket.on('connect', function(){ 
+            console.log("Connected."); 
+        });
+        socket.on('message', function(evt){ 
+            var parsed;
+            try {
+                parsed = JSON.parse(evt);
+            } catch (e) {
+                console.log("Not json message received: "+evt); 
+                return;
+            }
+
+            var series = chart.series[0];
+            var x = (new Date()).getTime();
+            var y = parsed.data.sda.sectors_read - last_value;
+            last_value = parsed.data.sda.sectors_read;
+     //       console.log('addPoint: ' + x + ' y: '+y);
+            series.addPoint([x,y], true, true);
+        });
+        socket.on('disconnect', function(){ 
+            console.log("Disconnected."); 
+        });
+        var updateTimerCallback = function() {
+            socket.send(JSON.stringify({sensor: 'diskstats', disk: 'sda'}));
+            /* Update chart rate */
+            //var new_updaterate = $("#rangeselector").val();
+            var new_updaterate = updaterate;
+        };
+        var updateTimer = setInterval(updateTimerCallback, updaterate);
+    </script> 
+    <script type="text/javascript">
+    var chart;
+    $(document).ready(function() {
+        chart = new Highcharts.Chart({
+            chart: {
+                animation: {
+                    duration: 200,
+                    easing: 'linear'
+                },
+                renderTo: 'container',
+                defaultSeriesType: 'spline',
+                marginRight: 10,
+            },
+            title: {
+                text: 'Live /proc/diskstats statistics'
+            },
+            xAxis: {
+                type: 'datetime',
+                tickPixelInterval: 150
+            },
+            yAxis: {
+                title: {
+                    text: 'Value'
+                },
+                plotLines: [{
+                    value: 0,
+                    width: 1,
+                    color: '#808080'
+                }]
+            },
+            tooltip: {
+                formatter: function() {
+                    return '<b>'+ this.series.name +'</b><br/>'+
+                    Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) +'<br/>'+ 
+                    Highcharts.numberFormat(this.y, 2);
+                }
+            },
+            legend: {
+                    enabled: false
+            },
+            plotOptions: {
+                spline: {
+                    animation: false
+                }
+            },
+            series: [{
+                name: 'Random data',
+                data: (function() {
+                    // generate an array of random data
+                    var data = [],
+                        time = (new Date()).getTime(),
+                            i;
+                        for (i = -19; i <= 0; i++) {
+                            data.push({
+                                x: time + i * 1000,
+                                y: 0
+                            });
+                        }
+                        return data;
+                    }
+                )()
+            }]
+        });
+    });
+    </script>
+    <script lang="text/javascript">
+    $(document).ready(function() {
+        $("#slider").slider({
+            min: 200,
+            max: 5000,
+            value: 300,
+            step: 100,
+            change: function(event, ui) {
+                var new_updaterate = ui.value;
+                if (new_updaterate != updaterate && new_updaterate != 0)
+                {
+                    console.log("Update rate changed to: "+new_updaterate);
+                    clearInterval(updateTimer);
+                    updaterate = new_updaterate;
+                    $("#refreshrate").text("Current update rate: "+updaterate+"ms");
+                    chart.animation.duration = updaterate/2;
+                    updateTimer = setInterval(updateTimerCallback, updaterate);
+                }
+            }
+        });
+        $("#refreshrate").text("Current update rate: "+updaterate+"ms");
+    });
+    </script>
+  </head>
+  <body>
+    <div id="container" style="width: auto; height: 500px; margin: 0 auto"></div>
+    Adjust refresh time: <div id="slider" style="display: block;"></div>
+    <p id="refreshrate" style="text-align: center; font-size: 3em; font-weight: bold;"></p>
+  </body>
+</html>
