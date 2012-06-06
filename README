@@ -1,0 +1,10 @@
+For many years i wanted to create a system which would permits to view system machine statistics "real time". (Like io statistics on a production server).
+
+Todays technologies like google chrome / html5 / websocket now permits to do so easyly.
+
+This is my experiment in that way.
+
+
+You'll need nodejs with npm: connect, socket.io-connect to run it.
+
+More informations on my website: http://ed.zehome.com/ (French)
